@@ -6,13 +6,19 @@ library(patchwork)
 library(ggtree)
 
 # 1. Your mutation data (same one you used as input)
-mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun040526/Combined_Surgical_Lineage_Matrix.csv")
+mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PMMono/subsample_seed1/mut_dat_sub.csv")
 
 # 2. Your model output
-md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun040526/mitodrift_object.rds")
+md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PMMono/subsample_seed1/mitodrift_object.rds")
+
+# 3. Optional - tree diangostics 
+diag <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PMMono/subsample_seed1/tree_mcmc_diag.rds")
+str(diag) 
+print(diag$asdsf)
+
 
 # 3. Trim the tree
-tree_trim <- trim_tree(md$tree_annot, conf = 0.05)
+tree_trim <- trim_tree(md$tree_annot, conf = 0.1)
 
 # 4. Plot
 pdf("MonoSubset1.pdf", width = 10, height = 8)
@@ -33,18 +39,18 @@ plot_phylo_heatmap2(
 dev.off()
 
 pr_df <- compute_variant_pr_curve(md$tree_annot, mut_dat)
-pdf("precision_recall_Cat040526.pdf")
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PMMono/subsample_seed1/precision_recall_Cat060526:).pdf")
 plot_prec_recall_vs_conf(
   pr_df,
   sample_name = "Variant-based precision recall Ctx_Surgical",
-  cutoff = 0.6
+  cutoff = 0.4
 )
 dev.off()
 # 5. Trim tree based on the confidence threshold of previous plot
 
-tree_trim <- trim_tree(md$tree_annot, conf = 0.640)
+tree_trim <- trim_tree(md$tree_annot, conf = 0.1138)
 
-pdf("Trimmed_tree_MonoSub.pdf", width = 10, height = 8)
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/SurgMono/subsample_seed1/Trimmed_tree_MonoSub.pdf", width = 10, height = 8)
 plot_phylo_heatmap2(
   tree_trim,
   mut_dat,
@@ -67,13 +73,14 @@ clone_df <- assign_clones_polytomy(tree_trim)
 clade_order <- unique(clone_df$clade)
 clone_pal <- make_clade_pal(length(clade_order), labels = clade_order,
                             pal = "Dark2", cycle_len = 8, cycle_shift = 0)
-pdf("Clone_tree_Cat040526.pdf", width = 10, height = 8)
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PMMono/subsample_seed1/Clone_tree_Cat060526.pdf", width = 10, height = 8)
 plot_phylo_heatmap2(
   tree_trim,
   mut_dat,
-  cell_annot = list(clone_df, cell_annot_df),
-  layered = TRUE,
-  node_conf = TRUE,
+  cell_annot = clone_df,
+  annot_pal = clone_pal,
+  layered = FALSE,
+  node_conf = FALSE,
   dot_size = 2,
   branch_length = FALSE,
   title = "Clones on trimmed tree"
@@ -81,7 +88,7 @@ plot_phylo_heatmap2(
 dev.off()
 head(clone_df)
 head(clone_pal)
-pdf("Circ_chart_0.1_Ctx_Surgical.pdf", width = 10, height = 8)
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PMMono/subsample_seed1/Circ_chart_0.1_Ctx_Surgical.pdf", width = 10, height = 8)
 plot_phylo_circ(
   tree_trim,
   cell_annot = clone_df,
