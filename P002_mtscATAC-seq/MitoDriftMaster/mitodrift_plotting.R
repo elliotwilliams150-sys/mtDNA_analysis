@@ -7,15 +7,16 @@ library(patchwork)
 library(ggtree)
 
 # 1. Your mutation data (same one you used as input)
-mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PM/PM_Monos_subset.csv")
+mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/SurgMCGSubtypes/INFLAM/subsample_seed1/mut_dat_sub.csv")
 
 # 2. Your model output
-md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PM/mitodrift_object.rds")
+md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/SurgMCGSubtypes/INFLAM/subsample_seed1/mitodrift_object.rds")
 
 # 3. Optional - tree diangostics 
-diag <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PMMono/subsample_seed1/tree_mcmc_diag.rds")
+diag <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/SurgMCGSubtypes/INFLAM/subsample_seed1/tree_mcmc_diag.rds")
 str(diag) 
 print(diag$asdsf)
+
 
 
 # 3. Trim the tree
@@ -40,7 +41,7 @@ plot_phylo_heatmap2(
 dev.off()
 
 pr_df <- compute_variant_pr_curve(md$tree_annot, mut_dat)
-pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PM/PR_curve.pdf")
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/SurgMCGSubtypes/INFLAM/subsample_seed1/PR_curve.pdf", width = 6, height = 4)
 plot_prec_recall_vs_conf(
   pr_df,
   sample_name = "Variant-based precision recall Ctx_Surgical",
@@ -49,9 +50,9 @@ plot_prec_recall_vs_conf(
 dev.off()
 # 5. Trim tree based on the confidence threshold of previous plot
 
-tree_trim <- trim_tree(md$tree_annot, conf = 0.1138)
+tree_trim <- trim_tree(md$tree_annot, conf = 0.125)
 
-pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/MonoSubsets/PM/Trimmed_tree_MonoSubset.pdf", width = 10, height = 8)
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/SurgMCGSubtypes/INFLAM/subsample_seed1/Trimmed_tree_Ctx_Surgical.pdf", width = 10, height = 8)
 plot_phylo_heatmap2(
   tree_trim,
   mut_dat,
