@@ -7,13 +7,13 @@ cd /mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526
 Rscript /home/elliot/R/x86_64-pc-linux-gnu-library/4.4/mitodrift/bin/run_mitodrift_em.R \
   --mut_dat /mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526/combined_mut_dat.csv \
   --outdir  /mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526 \
-  --tree_mcmc_iter 100000 \
+  --tree_mcmc_iter 250000 \
   --tree_mcmc_chains 10 \
-  --tree_mcmc_burnin 10000 \
+  --tree_mcmc_burnin 25000 \
   --conv_thres 0.1 \
   --ncores 10 \
   --ncores_em 10 \
   --ncores_nj 10 \
   --ncores_qs 10 \
   --ncores_annot 1 \
-  --resume FALSE
+  --resume TRUE
