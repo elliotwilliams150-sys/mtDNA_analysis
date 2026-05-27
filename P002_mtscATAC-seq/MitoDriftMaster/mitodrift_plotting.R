@@ -44,12 +44,12 @@ pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/PR_curv
 plot_prec_recall_vs_conf(
   pr_df,
   sample_name = "Variant-based precision recall Ctx_Surgical",
-  cutoff = 0.18
+  cutoff = 0.17
 )
 dev.off()
 # 5. Trim tree based on the confidence threshold of previous plot
 
-tree_trim <- trim_tree(md$tree_annot, conf = 0.18)
+tree_trim <- trim_tree(md$tree_annot, conf = 0.145)
 
 pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/Trimmed_tree_Ctx_Surgical.pdf", width = 10, height = 8)
 plot_phylo_heatmap2(
@@ -58,7 +58,7 @@ plot_phylo_heatmap2(
   node_conf = TRUE,
   dot_size = 2,
   branch_length = FALSE,
-  title = "Trimmed tree MonoSubset1"
+  title = "Trimmed tree Blood+Brain_Surgical"
 )
 dev.off()
 # 6. Save the variants in the trimmed tree
@@ -73,7 +73,7 @@ clone_df <- assign_clones_polytomy(tree_trim)
 clade_order <- unique(clone_df$clade)
 clone_pal <- make_clade_pal(length(clade_order), labels = clade_order,
                             pal = "Dark2", cycle_len = 8, cycle_shift = 0)
-pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/Clone_tree_Ctx_Surgical.pdf", width = 10, height = 8)
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/Clone_tree_HipnBlood_Surgical.pdf", width = 10, height = 8)
 plot_phylo_heatmap2(
   tree_trim,
   mut_dat,
@@ -129,7 +129,244 @@ drop_root_singletons <- function(tree) {
 
 tree_trim <- drop_root_singletons(tree_trim)
 
-#Clade enrichment analysis 
-library(ape)
-library(phangorn)
+#Create tissue type annotation dataframe
+df_with_annot <- df_with_annot %>%
+  mutate(
+    annot = substr(gsub("^(.)(_.*)", "\\1", cell), 1, 1),
+    annot = if_else(annot %in% c("P", "H"), annot, "Unknown")  # safety if you ever see non‑P/H
+  ) 
 
+#Create cell type annotation dataframe
+cell_type_df <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/tissue_mitodrift_df_combined.csv", stringsAsFactors = FALSE)
+
+
+
+
+
+                                                    ### clade enrichment analysis ### 
+shared <- intersect(tree_trim$tip.label, cell_type_df$cell)
+tree_trim2 <- ape::keep.tip(tree_trim, shared)
+cell_type_df2 <- cell_type_df[cell_type_df$cell %in% shared, ]
+trait <- setNames(cell_type_df2$annot, cell_type_df2$cell)
+trait <- trait[tree_trim2$tip.label]
+mono <- as.numeric(trait == "INFLAM")
+names(mono) <- names(trait)
+# binary monocyte trait: 1 = Mono, 0 = not Mono
+mono <- as.numeric(trait == "INFLAM")
+names(mono) <- tree_trim2$tip.label
+# global mean and SD across all tips
+global_mean <- mean(mono, na.rm = TRUE)
+global_sd <- sd(mono, na.rm = TRUE)
+# get internal nodes
+Ntip <- length(tree_trim2$tip.label)
+nodes <- (Ntip + 1):(Ntip + tree_trim2$Nnode)
+# compute clade mean and deviation for each internal node
+mono_clade_stats <- data.frame(
+  node = nodes,
+  size = NA_integer_,
+  clade_mean = NA_real_,
+  deviation = NA_real_
+)
+for (i in seq_along(nodes)) {
+  node <- nodes[i]
+  desc <- phangorn::Descendants(tree_trim2, node, type = "tips")[[1]]
+  tip_names <- tree_trim2$tip.label[desc]
+  vals <- mono[tip_names]
+  
+  mono_clade_stats$size[i] <- length(vals)
+  mono_clade_stats$clade_mean[i] <- mean(vals, na.rm = TRUE)
+  mono_clade_stats$deviation[i] <- mono_clade_stats$clade_mean[i] - global_mean
+}
+head(mono_clade_stats)
+
+#Deviation from gloabl mean / size-adjusted SE = z score, use clone_df to get clade size
+mono_clade_stats <- clone_df %>%
+  group_by(clade) %>%
+  summarise(
+    size = n(),
+    clade_mean = mean(mono[cell], na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    deviation = clade_mean - global_mean,
+    se = global_sd / sqrt(size),
+    z = deviation / se
+  )
+head(mono_clade_stats)
+
+#calculate p value from z score 
+min_clade_size <- 10 #select major clades, do this per cell type
+mono_clade_stats$p <- NA_real_
+keep <- !is.na(mono_clade_stats$z) & mono_clade_stats$size >= min_clade_size
+# two-sided p-values from standard normal
+mono_clade_stats$p[keep] <- 2 * pnorm(-abs(mono_clade_stats$z[keep]))
+# Benjamini-Hochberg correction
+mono_clade_stats$padj <- NA_real_
+mono_clade_stats$padj[keep] <- p.adjust(mono_clade_stats$p[keep], method = "BH")
+head(mono_clade_stats)
+
+
+#'clade enrichment'
+library(ape)
+library(dplyr)
+
+# -----------------------------
+# 1) Prepare trimmed tree and matching cell annotation
+# -----------------------------
+shared <- intersect(tree_trim$tip.label, cell_type_df$cell)
+tree_trim2 <- ape::keep.tip(tree_trim, shared)
+cell_type_df2 <- cell_type_df[cell_type_df$cell %in% shared, ]
+
+# -----------------------------
+# 2) Use existing mono_clade_stats, keep only positive enrichment
+#    Expected columns: clade, z, size, padj
+# -----------------------------
+mono_clade_stats2 <- mono_clade_stats %>%
+  distinct(clade, .keep_all = TRUE) %>%
+  mutate(clade = as.character(clade)) %>%
+  filter(size >= 10, z > 0)
+# Optional stricter version:
+# mono_clade_stats2 <- mono_clade_stats %>%
+#   distinct(clade, .keep_all = TRUE) %>%
+#   mutate(clade = as.character(clade)) %>%
+#   filter(size >= 10, z > 0, !is.na(padj), padj < 0.05)
+
+# -----------------------------
+# 3) Map each clade to its MRCA node in the trimmed tree
+# -----------------------------
+clade_tips <- clone_df %>%
+  group_by(clade) %>%
+  summarise(
+    tips = list(intersect(unique(cell), tree_trim2$tip.label)),
+    .groups = "drop"
+  )
+
+clade_node_map2 <- lapply(seq_len(nrow(clade_tips)), function(i) {
+  tips_i <- clade_tips$tips[[i]]
+  if (length(tips_i) < 2) return(NULL)
+
+  node_i <- ape::getMRCA(tree_trim2, tips_i)
+  if (is.null(node_i) || is.na(node_i)) return(NULL)
+
+  data.frame(
+    clade = as.character(clade_tips$clade[i]),
+    clade_node = as.integer(node_i),
+    stringsAsFactors = FALSE
+  )
+}) %>%
+  bind_rows()
+
+tmp <- merge(
+  clade_node_map2,
+  mono_clade_stats2[, c("clade", "z", "size", "padj")],
+  by = "clade",
+  all.x = TRUE
+)
+
+tmp <- tmp[!is.na(tmp$z), ]
+tmp <- tmp[tmp$size >= 10, ]
+
+cat("Positive enriched clades mapped:", nrow(tmp), "\n")
+
+# -----------------------------
+# 4) Recursive descendant walker (internal nodes + tips)
+# -----------------------------
+get_all_descendants <- function(tree, start_node) {
+  edge <- tree$edge
+  out <- integer(0)
+  stack <- start_node
+
+  while (length(stack) > 0) {
+    current <- stack[1]
+    stack <- stack[-1]
+
+    children <- edge[edge[, 1] == current, 2]
+    if (length(children) == 0) next
+
+    out <- c(out, children)
+    stack <- c(children, stack)
+  }
+
+  unique(out)
+}
+
+# -----------------------------
+# 5) Build binary node_scores for internal nodes AND tip labels
+# -----------------------------
+n_tip <- ape::Ntip(tree_trim2)
+
+internal_scores <- setNames(
+  rep(0L, tree_trim2$Nnode),
+  as.character((n_tip + 1):(n_tip + tree_trim2$Nnode))
+)
+
+tip_scores <- setNames(
+  rep(0L, n_tip),
+  tree_trim2$tip.label
+)
+
+# Paint larger clades first so parent clades don't get overwritten by smaller ones
+tmp$subtree_size <- vapply(tmp$clade_node, function(nd) {
+  length(get_all_descendants(tree_trim2, nd))
+}, numeric(1))
+
+tmp <- tmp[order(tmp$subtree_size, decreasing = TRUE), ]
+
+for (i in seq_len(nrow(tmp))) {
+  mrca_node <- tmp$clade_node[i]
+
+  desc <- get_all_descendants(tree_trim2, mrca_node)
+  desc_internal <- desc[desc > n_tip]
+  desc_tips <- desc[desc <= n_tip]
+
+  internal_scores[as.character(c(mrca_node, desc_internal))] <- 1L
+  if (length(desc_tips) > 0) {
+    tip_scores[tree_trim2$tip.label[desc_tips]] <- 1L
+  }
+}
+
+node_scores <- c(internal_scores, tip_scores)
+
+cat("Enriched scored:", sum(node_scores == 1L, na.rm = TRUE), "\n")
+cat("Unenriched scored:", sum(node_scores == 0L, na.rm = TRUE), "\n")
+cat("Total scored entries:", length(node_scores), "\n")
+
+# -----------------------------
+# 6) Plot
+# -----------------------------
+pdf(
+  "/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/inflam_tree_HipnBlood_Surgical_binary.pdf",
+  width = 10, height = 8
+)
+
+plot_phylo_heatmap2(
+  tree_trim2,
+  df_var = NULL,
+  cell_annot = list(clone_df, cell_type_df2),
+  annot_pal = list(
+    clone_pal,
+    c(
+      P = "white",
+      H = "white",
+      NK = "white",
+      Mono = "#ffffff",
+      B_cell = "white",
+      T_cell = "white",
+      Oligos = "white",
+      HOMEO = "#ffffff",
+      INFLAM = "#c410db",
+      `T cell` = "white"
+    )
+  ),
+  node_scores = node_scores,
+  node_score_limits = c(0, 1),
+  layered = FALSE,
+  node_conf = FALSE,
+  dot_size = 2,
+  branch_width = 0.35,
+  branch_length = FALSE,
+  show_variant_names = FALSE,
+  title = "Positively enriched clades on trimmed tree"
+)
+
+dev.off()
