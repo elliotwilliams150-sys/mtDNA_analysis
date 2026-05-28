@@ -369,4 +369,85 @@ plot_phylo_heatmap2(
   title = "Positively enriched clades on trimmed tree"
 )
 
+
+
+#####       PATH analysis     ######
+library(PATH)
+library(expm)
+library(ggplot2)
+library(ggtree)
+library(ggtreeExtra)
+library(tidytree)
+library(Matrix)
+library(patchwork)
+
+shared <- intersect(tree_trim$tip.label, cell_type_df$cell)
+tree_trim2 <- ape::keep.tip(tree_trim, shared)
+cell_type_df2 <- cell_type_df[cell_type_df$cell %in% shared, ]
+
+tree_unit <- tree_trim2
+tree_unit$edge.length <- rep(1, length(tree_unit$edge.length))
+
+# Get phylogenetic node distance matrix 
+# retaining only node distances of 1.
+W <- ape::vcv(tree_unit, model = "Brownian", corr = FALSE)
+diag(W) <- 0
+W <- W / rowSums(W)
+# Transform vector of cell state assignments into matrix
+# format for calculating phylogenetic correlations. 
+W <- ape::vcv(tree_unit, model = "Brownian", corr = FALSE)
+diag(W) <- 0
+diag(W) <- 0
+rs <- rowSums(W)
+idx <- which(!is.na(rs) & rs > 0)
+W[idx, ] <- W[idx, ] / rs[idx]
+states <- c("Mono", "INFLAM", "HOMEO")
+trait_vec <- factor(trait_vec, levels = states)
+
+X <- outer(trait_vec, trait_vec, FUN = "==") * 1
+rownames(X) <- names(trait_vec)
+colnames(X) <- names(trait_vec)
+
+# Compute phylogenetic correlations with xcor().
+# Output of xcor() is a list,  including:
+# phylogenetic correlations ("Morans.I"), and
+# leaf-permutation based
+# analytical z scores ("Z.score"), 
+# variance ("Var.I"), expected values ("Expected.I"),
+# and one-sided p-values ("one.sided.pvalue").
+phy_xcor <- xcor(X, W)
+#conduct two sided p test and adjust for multiple testing using Benjamini-Hochberg
+z_mat <- phy_xcor$Z.score
+p_two_mat <- 2 * pnorm(-abs(z_mat))
+p_adj_mat <- matrix(p.adjust(as.vector(p_two_mat), method = "BH"),
+                    nrow = nrow(p_two_mat),
+                    dimnames = dimnames(p_two_mat))
+      
+keep <- c("Mono", "INFLAM", "HOMEO")
+p_state <- p_two_mat[keep, keep]
+p_state_adj <- matrix(
+  p.adjust(as.vector(p_state), method = "BH"),
+  nrow = 3,
+  dimnames = list(keep, keep)
+)
+
+#plotting heatmap of phylogenetic correlations between cell states
+cor_mat <- phy_xcor$phy_cor
+state_order <- c("Mono", "INFLAM", "HOMEO")
+cor_mat <- cor_mat[state_order, state_order]
+
+df_heat <- melt(cor_mat)
+colnames(df_heat) <- c("State1", "State2", "Correlation")
+
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/mitodrift_path_heatmap.pdf",
+    width = 6, height = 5)
+
+ggplot(df_heat, aes(x = State1, y = State2, fill = Correlation)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", Correlation)), size = 4) +
+  scale_fill_gradient2(low = "#2166ac", mid = "white", high = "#b2182b", midpoint = 0) +
+  coord_equal() +
+  theme_minimal() +
+  labs(x = NULL, y = NULL, fill = "Phylo corr")
+
 dev.off()
