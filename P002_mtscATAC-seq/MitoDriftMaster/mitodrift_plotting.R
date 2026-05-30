@@ -373,81 +373,78 @@ plot_phylo_heatmap2(
 
 #####       PATH analysis     ######
 library(PATH)
-library(expm)
-library(ggplot2)
-library(ggtree)
-library(ggtreeExtra)
-library(tidytree)
+library(ape)
 library(Matrix)
-library(patchwork)
+library(ggplot2)
+library(phytools)
 
-shared <- intersect(tree_trim$tip.label, cell_type_df$cell)
-tree_trim2 <- ape::keep.tip(tree_trim, shared)
-cell_type_df2 <- cell_type_df[cell_type_df$cell %in% shared, ]
+ord <- c("B cell", "NK", "CD8 T cell", "CD4 T cell", "Mono", "T cell", "INFLAM", "HOMEO", "Oligos")
 
-tree_unit <- tree_trim2
-tree_unit$edge.length <- rep(1, length(tree_unit$edge.length))
+tree_path <- tree_trim
+tree_path$edge.length <- rep(1, nrow(tree_path$edge))
+tree_path <- phytools::midpoint.root(tree_path)
+tree_path <- ape::multi2di(tree_path)
+tree_path$edge.length <- rep(1, nrow(tree_path$edge))
 
-# Get phylogenetic node distance matrix 
-# retaining only node distances of 1.
-W <- ape::vcv(tree_unit, model = "Brownian", corr = FALSE)
+cell_type_df$cell <- as.character(cell_type_df$cell)
+cell_type_df$annot <- as.character(cell_type_df$annot)
+cell_type_df$annot[cell_type_df$annot == "" | is.na(cell_type_df$annot)] <- "other"
+cell_type_df <- cell_type_df[cell_type_df$annot != "other", ]
+
+common <- intersect(tree_path$tip.label, cell_type_df$cell)
+tree_path <- drop.tip(tree_path, setdiff(tree_path$tip.label, common))
+cell_type_df <- cell_type_df[cell_type_df$cell %in% common, ]
+cell_type_df <- cell_type_df[match(tree_path$tip.label, cell_type_df$cell), ]
+
+cell_type_df$annot <- factor(cell_type_df$annot, levels = ord)
+
+W <- ape::vcv(tree_path)
 diag(W) <- 0
 W <- W / rowSums(W)
-# Transform vector of cell state assignments into matrix
-# format for calculating phylogenetic correlations. 
-W <- ape::vcv(tree_unit, model = "Brownian", corr = FALSE)
-diag(W) <- 0
-diag(W) <- 0
-rs <- rowSums(W)
-idx <- which(!is.na(rs) & rs > 0)
-W[idx, ] <- W[idx, ] / rs[idx]
-states <- c("Mono", "INFLAM", "HOMEO")
-trait_vec <- factor(trait_vec, levels = states)
 
-X <- outer(trait_vec, trait_vec, FUN = "==") * 1
-rownames(X) <- names(trait_vec)
-colnames(X) <- names(trait_vec)
+X <- model.matrix(~ 0 + annot, data = cell_type_df)
+colnames(X) <- sub("^annot", "", colnames(X))
+X <- X[, ord, drop = FALSE]
 
-# Compute phylogenetic correlations with xcor().
-# Output of xcor() is a list,  including:
-# phylogenetic correlations ("Morans.I"), and
-# leaf-permutation based
-# analytical z scores ("Z.score"), 
-# variance ("Var.I"), expected values ("Expected.I"),
-# and one-sided p-values ("one.sided.pvalue").
-phy_xcor <- xcor(X, W)
-#conduct two sided p test and adjust for multiple testing using Benjamini-Hochberg
-z_mat <- phy_xcor$Z.score
-p_two_mat <- 2 * pnorm(-abs(z_mat))
-p_adj_mat <- matrix(p.adjust(as.vector(p_two_mat), method = "BH"),
-                    nrow = nrow(p_two_mat),
-                    dimnames = dimnames(p_two_mat))
-      
-keep <- c("Mono", "INFLAM", "HOMEO")
-p_state <- p_two_mat[keep, keep]
-p_state_adj <- matrix(
-  p.adjust(as.vector(p_state), method = "BH"),
-  nrow = 3,
-  dimnames = list(keep, keep)
-)
+out <- xcor(X, W)
+zmat <- out$Z.score
+rownames(zmat) <- ord
+colnames(zmat) <- ord
 
-#plotting heatmap of phylogenetic correlations between cell states
-cor_mat <- phy_xcor$phy_cor
-state_order <- c("Mono", "INFLAM", "HOMEO")
-cor_mat <- cor_mat[state_order, state_order]
+plotdat <- expand.grid(i = seq_along(ord), j = seq_along(ord))
+plotdat$xlab <- ord[plotdat$i]
+plotdat$ylab <- ord[plotdat$j]
+plotdat$z_score <- mapply(function(a, b) zmat[a, b], plotdat$xlab, plotdat$ylab)
 
-df_heat <- melt(cor_mat)
-colnames(df_heat) <- c("State1", "State2", "Correlation")
+plotdat <- plotdat[plotdat$j <= plotdat$i, ]
 
-pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/mitodrift_path_heatmap.pdf",
-    width = 6, height = 5)
+plotdat$x <- plotdat$i
+plotdat$y <- length(ord) - plotdat$j + 1
 
-ggplot(df_heat, aes(x = State1, y = State2, fill = Correlation)) +
-  geom_tile(color = "white") +
-  geom_text(aes(label = sprintf("%.2f", Correlation)), size = 4) +
-  scale_fill_gradient2(low = "#2166ac", mid = "white", high = "#b2182b", midpoint = 0) +
+p <- ggplot(plotdat, aes(x = x, y = y, fill = z_score)) +
+  geom_tile(color = "black", linewidth = 0.3) +
+  geom_point(size = 0.8, color = "black") +
+  scale_fill_gradient2(low = "#6b5bbd", mid = "white", high = "#f03b20", midpoint = 0) +
+  scale_x_continuous(
+    breaks = seq_along(ord),
+    labels = ord,
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    breaks = seq_along(ord),
+    labels = rev(ord),
+    expand = c(0, 0)
+  ) +
   coord_equal() +
   theme_minimal() +
-  labs(x = NULL, y = NULL, fill = "Phylo corr")
+  theme(
+    axis.title = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
 
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/path_heatmap_triangle.pdf", width = 8, height = 7)
+print(p)
 dev.off()
