@@ -7,13 +7,13 @@ library(patchwork)
 library(ggtree)
 
 # 1. Your mutation data (same one you used as input)
-mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/Cluser7Cat/combined_mut_dat.csv")
+mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/combined_mut_dat_noH.csv")
 
 # 2. Your model output
-md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/Cluser7Cat/mitodrift_object.rds")
+md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/mitodrift_object.rds")
 
 # 3. Optional - tree diangostics 
-diag <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/tree_mcmc_diag.rds")
+diag <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/tree_mcmc_diag.rds")
 str(diag) 
 print(diag$asdsf)
 
@@ -797,7 +797,7 @@ df_with_annot <- df_with_annot %>%
 
 #Create cell type annotation dataframe
 cell_type_df <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRun210526_copy/tissue_mitodrift_df_combined.csv", stringsAsFactors = FALSE)
-
+cell_type_df
 
 
 
