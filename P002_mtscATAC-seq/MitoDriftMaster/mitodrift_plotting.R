@@ -7,10 +7,10 @@ library(patchwork)
 library(ggtree)
 
 # 1. Your mutation data (same one you used as input)
-mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/combined_mut_dat_noH.csv")
+mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD/combined_mut_dat.csv")
 
 # 2. Your model output
-md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/mitodrift_object.rds")
+md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD/mitodrift_object.rds")
 
 # 3. Optional - tree diangostics 
 diag <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/tree_mcmc_diag.rds")
