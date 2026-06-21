@@ -7,10 +7,10 @@ library(patchwork)
 library(ggtree)
 
 # 1. Your mutation data (same one you used as input)
-mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD/combined_mut_dat.csv")
+mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/PM_combined_matrix.csv")
 
 # 2. Your model output
-md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD/mitodrift_object.rds")
+md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/mitodrift_object.rds")
 
 # 3. Optional - tree diangostics 
 diag <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/tree_mcmc_diag.rds")
@@ -22,7 +22,7 @@ print(diag$asdsf)
 tree_trim <- trim_tree(md$tree_annot, conf = 0.05)
 
 # 4. Plot
-pdf("MonoSubset1.pdf", width = 10, height = 8)
+pdf("PMcat.pdf", width = 10, height = 8)
 plot_phylo_heatmap2(
   md$tree_annot,
   mut_dat,
@@ -35,7 +35,7 @@ plot_phylo_heatmap2(
   het_max = 1,
   ladderize =  TRUE, 
 
-  title = "MonoSubset1_tree"
+  title = "PM_tree"
 )
 dev.off()
 
