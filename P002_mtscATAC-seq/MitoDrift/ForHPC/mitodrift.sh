@@ -10,7 +10,7 @@ Rscript /home/elliot/R/x86_64-pc-linux-gnu-library/4.4/mitodrift/bin/run_mitodri
   --tree_mcmc_iter 400000 \
   --tree_mcmc_chains 10 \
   --tree_mcmc_burnin 35000 \
-  --conv_thres 0.1 \
+  --conv_thres 0.13 \
   --ncores 10 \
   --ncores_em 10 \
   --ncores_nj 10 \

@@ -40,25 +40,25 @@ plot_phylo_heatmap2(
 dev.off()
 
 pr_df <- compute_variant_pr_curve(md$tree_annot, mut_dat)
-pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/PR_curve.pdf", width = 6, height = 4)
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/PR_curve.pdf", width = 6, height = 4)
 plot_prec_recall_vs_conf(
   pr_df,
   sample_name = "Variant-based precision recall Ctx_Surgical",
-  cutoff = 0.4
+  cutoff = 0.03
 )
 dev.off()
 # 5. Trim tree based on the confidence threshold of previous plot
 
-tree_trim <- trim_tree(md$tree_annot, conf = 0.145)
+tree_trim <- trim_tree(md$tree_annot, conf = 0.15)
 
-pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/Trimmed_tree_Ctx_Surgical.pdf", width = 10, height = 8)
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/Trimmed_tree.pdf", width = 10, height = 8)
 plot_phylo_heatmap2(
   tree_trim,
   mut_dat,
   node_conf = TRUE,
   dot_size = 2,
   branch_length = FALSE,
-  title = "Trimmed tree Blood+Brain_Surgical"
+  title = "Trimmed tree Blood+Brain_PM"
 )
 dev.off()
 # 6. Save the variants in the trimmed tree
@@ -130,12 +130,12 @@ plot_phylo_heatmap2(
 
 dev.off()
 
-pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/Cluser7Cat/Clone_tree_BainBlood_AD.pdf", width = 10, height = 8)
+pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/Clone_tree.pdf", width = 10, height = 8)
 plot_phylo_heatmap2(
   tree_trim,
   mut_dat,
   cell_annot = list(clone_df, df_with_annot), 
-  annot_pal = list(clone_pal, c(P = "gray50", H = "orange")),
+  annot_pal = list(clone_pal, c(P = "gray50", C = "orange")),
   layered = FALSE,
   node_conf = FALSE,
   dot_size = 2,
@@ -147,7 +147,7 @@ dev.off()
 df_with_annot <- clone_df %>%
   mutate(
     annot = substr(gsub("^(.)(_.*)", "\\1", cell), 1, 1),
-    annot = if_else(annot %in% c("P", "H"), annot, "Unknown")  # safety if you ever see non‑P/H
+    annot = if_else(annot %in% c("P", "C"), annot, "Unknown")  # safety if you ever see non‑P/H
   )
 
 df_with_annot
@@ -239,10 +239,10 @@ drop_root_singletons <- function(tree) {
 tree_trim <- drop_root_singletons(tree_trim)
 
 #Create tissue type annotation dataframe
-df_with_annot <- df_with_annot %>%
+df_with_annot <- mut_dat %>%
   mutate(
     annot = substr(gsub("^(.)(_.*)", "\\1", cell), 1, 1),
-    annot = if_else(annot %in% c("P", "H"), annot, "Unknown")  # safety if you ever see non‑P/H
+    annot = if_else(annot %in% c("P", "C"), annot, "Unknown")  # safety if you ever see non‑P/H
   ) 
 
 # build cell_type_df in the format you want
@@ -1031,4 +1031,40 @@ plot_phylo_heatmap2(
 
 
 #####       PATH analysis     ######
-##### PATH analysis ######
+##### PATH analysis 220626#
+# keep only P_1235 and C_5
+mut2 <- mut_dat[mut_dat$annot %in% c("P_1235", "C_5"), ]
+mut2$group <- factor(mut2$annot, levels = c("P_1235", "C_5"))
+
+# align to tree
+tree2 <- tree_trim
+tree2$edge.length <- rep(1, nrow(tree2$edge))
+tree2 <- phytools::midpoint.root(tree2)
+tree2 <- ape::multi2di(tree2)
+tree2$edge.length <- rep(1, nrow(tree2$edge))
+
+common <- intersect(tree2$tip.label, mut2$cell)
+tree2 <- drop.tip(tree2, setdiff(tree2$tip.label, common))
+mut2 <- mut2[mut2$cell %in% common, ]
+mut2 <- mut2[match(tree2$tip.label, mut2$cell), ]
+
+# W matrix
+W <- ape::vcv(tree2)
+diag(W) <- 0
+W <- W / rowSums(W)
+W <- as.matrix(W)
+
+# X matrix
+X <- model.matrix(~ 0 + group, data = mut2)
+colnames(X) <- sub("^group", "", colnames(X))
+X <- as.matrix(X)
+X <- X[, c("P_1235", "C_5"), drop = FALSE]
+rownames(X) <- mut2$cell
+
+# PATH test
+out <- xcor(X, W)
+
+zmat <- out$Z.score
+print(zmat)
+print(out$phy_cor)
+print(out$one.sided.pvalue)
