@@ -5,6 +5,10 @@ library(ggplot2)
 library(dplyr)
 library(patchwork)
 library(ggtree)
+source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/utils.R")
+source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/stats.R")
+source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/plotting_themes.R")
+source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/lineage_coupling.R")
 
 # 1. Your mutation data (same one you used as input)
 mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/PM_combined_matrix.csv")
@@ -50,6 +54,7 @@ dev.off()
 # 5. Trim tree based on the confidence threshold of previous plot
 
 tree_trim <- trim_tree(md$tree_annot, conf = 0.15)
+
 
 pdf("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/Trimmed_tree.pdf", width = 10, height = 8)
 plot_phylo_heatmap2(
