@@ -14,8 +14,8 @@ Rscript  # REPLACE WITH YOUR R PATH /home/elliot/R/x86_64-pc-linux-gnu-library/4
   --ncores 10 \
   --ncores_em 5 \
   --ncores_nj 5 \
-  --ncores_qs 1 \
-  --ncores_annot 1  \
+  --ncores_qs 5 \
+  --ncores_annot  \
   --resume FALSE
 
 cd /mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM
@@ -30,6 +30,6 @@ Rscript # REPLACE WITH YOUR R PATH /home/elliot/R/x86_64-pc-linux-gnu-library/4.
   --ncores 10 \
   --ncores_em 5 \
   --ncores_nj 5 \
-  --ncores_qs 1 \
-  --ncores_annot 1  \
+  --ncores_qs 5 \
+  --ncores_annot  \
   --resume FALSE
