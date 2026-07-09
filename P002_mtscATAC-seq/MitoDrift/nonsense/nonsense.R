@@ -21,13 +21,31 @@ suppressPackageStartupMessages({
 filter = dplyr::filter
 options(repr.matrix.max.cols=15, repr.matrix.max.rows=50)
 rename = dplyr::rename
-home='/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/nonsense'
+home='/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/HPC_outputs/PM_copy'
 R.utils::sourceDirectory(file.path(home, "R"))
 
 sample_id = 'PM_cat'
-phy_annot = read.tree(glue('/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/tree_annotated.newick'))
-mut_dat = fread(glue('/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/PM_combined_matrix.csv'))
-cell_annot <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/nonsense/cell_with_prefix.csv")
+phy_annot = read.tree(glue('/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/HPC_outputs/PM_copy/tree_annotated.newick'))
+mut_dat = fread(glue('/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/HPC_outputs/PM_copy/PM_combined_matrix.csv'))
+cell_annot <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/nonsense/cell_with_prefix_corrected.csv")
+
+options(repr.plot.width = 2.75, repr.plot.height = 2, repr.plot.res = 250)
+
+library(mitodrift)
+
+p_conf = 0.006
+phy_trim = phy_annot %>% trim_tree(conf = p_conf)
+
+pr_df_var = compute_variant_pr_curve(phy_annot, mut_dat, j_thres = 0.5, min_vaf = 0.05, ncores = 8)
+p = plot_prec_recall_vs_conf(pr_df_var, cutoff = p_conf, legend = F) + 
+    ggtitle(glue('PM_cat - Variants'))
+
+p
+
+ggsave(glue('/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/nonsense/variant_diag_curve.pdf'), p, width = 2.75, height = 2)
+
+
+
 
 
 options(repr.plot.width = 6.75, repr.plot.height = 4, repr.plot.res = 250)
@@ -70,36 +88,40 @@ cluster_dict = cell_annot %>% {setNames(.$prefix, .$cell)}
 source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/lineage_coupling.R")
 
 state_dict <- cluster_dict[phy_trim$tip.label]
-res_path <- run_path(phy_trim, model="bm", state_dict = state_dict, min_count=10)
+res_path <- run_path(phy_trim, model="bm", state_dict = state_dict)
 
 
 
-p = plot_coupling_triangle(res_path, state_order = state_order, mark_signif = T, limits = c(-0.15, 0.15)) +
+p = plot_coupling_triangle(res_path, mark_signif = TRUE, limits = c(-5, 5), statistic = "z") +
     theme(
         axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
-        legend.position = "right"
-    )
+        legend.position = "right",
+    ) 
 
-p
+
+ggsave(
+    "/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/nonsense/triangle.pdf",
+    p,
+    width = 6.75,
+    height = 4
+)
+
+
+current_theme <- theme_get()
+"statistic" %in% names(current_theme)
 
 ### try rh feature amtrix?
 
 
 
 
+p = plot_coupling_triangle(res_path, mark_signif = TRUE, limits = c(-0.05, 0.05)) +
+    theme(
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+        legend.position = "right",
+    )
 
-
-
-
-
-
-
-
-
-
-
-
-
+p
 
 
 
