@@ -33,7 +33,7 @@ options(repr.plot.width = 2.75, repr.plot.height = 2, repr.plot.res = 250)
 
 library(mitodrift)
 
-p_conf = 0.006
+p_conf = 0.01
 phy_trim = phy_annot %>% trim_tree(conf = p_conf)
 
 pr_df_var = compute_variant_pr_curve(phy_annot, mut_dat, j_thres = 0.5, min_vaf = 0.05, ncores = 8)
@@ -81,6 +81,7 @@ ggsave(
 
 phy_trim <- drop_singletons(phy_trim)
 
+
 options(repr.plot.width = 3, repr.plot.height = 2, repr.plot.res = 200)
 
 cluster_dict = cell_annot %>% {setNames(.$prefix, .$cell)}
@@ -92,7 +93,7 @@ res_path <- run_path(phy_trim, model="bm", state_dict = state_dict)
 
 
 
-p = plot_coupling_triangle(res_path, mark_signif = TRUE, limits = c(-5, 5), statistic = "z") +
+p = plot_coupling_triangle(res_path, mark_signif = TRUE, limits = c(-50, 50), statistic = "z") +
     theme(
         axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
         legend.position = "right",

@@ -5,6 +5,7 @@ library(ggplot2)
 library(dplyr)
 library(patchwork)
 library(ggtree)
+library(qs2)
 source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/utils.R")
 source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/stats.R")
 source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/plotting_themes.R")
@@ -17,9 +18,14 @@ mut_dat <- read.csv("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM
 md <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/ForHPC/PM/mitodrift_object.rds")
 
 # 3. Optional - tree diangostics 
-diag <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/CatRunAD_copy/tree_mcmc_diag.rds")
+diag <- readRDS("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/HPC_outputs/Surgical/Surgical/tree_mcmc_diag.rds")
 str(diag) 
 print(diag$asdsf)
+
+#3. Optional - MCMC trace investigations 
+tr_surgical <- qd_read("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/HPC_outputs/Surgical/Surgical/tree_mcmc_trace.qs2")
+tr_pm <- qd_read("/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/HPC_outputs/PM_copy/tree_mcmc_trace.qs2")
+head(tr_pm)
 
 
 # 3. Trim the tree
