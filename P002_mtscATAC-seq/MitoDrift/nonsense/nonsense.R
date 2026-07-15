@@ -33,7 +33,7 @@ options(repr.plot.width = 2.75, repr.plot.height = 2, repr.plot.res = 250)
 
 library(mitodrift)
 
-p_conf = 0.01
+p_conf = 0.1
 phy_trim = phy_annot %>% trim_tree(conf = p_conf)
 
 pr_df_var = compute_variant_pr_curve(phy_annot, mut_dat, j_thres = 0.5, min_vaf = 0.05, ncores = 8)
@@ -47,7 +47,7 @@ ggsave(glue('/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/nonsense/variant_
 
 
 
-
+library(mitodrift)
 options(repr.plot.width = 6.75, repr.plot.height = 4, repr.plot.res = 250)
 source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/utils.R")
 
@@ -89,16 +89,18 @@ cluster_dict = cell_annot %>% {setNames(.$prefix, .$cell)}
 source("/mnt/claw-raid/elliot/P002_mtscATAC-seq/scripts/path_state_fate_analysis/R/lineage_coupling.R")
 
 state_dict <- cluster_dict[phy_trim$tip.label]
-res_path <- run_path(phy_trim, model="bm", state_dict = state_dict)
+
+res_path <- run_path (phy_trim, state_dict = state_dict, model = "sibling", norm = TRUE, min_count = 10, diag_only = FALSE)
 
 
 
-p = plot_coupling_triangle(res_path, mark_signif = TRUE, limits = c(-50, 50), statistic = "z") +
+p = plot_coupling_triangle(res_path, mark_signif = TRUE, limits = c(-2.5, 2.5), statistic = "z",
+    signif_only = FALSE, q_thres = 0.2, rev_order = FALSE, highlight = NULL, highlight_color = "firebrick")
+ +
     theme(
         axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
         legend.position = "right",
-    ) 
-
+    ) )
 
 ggsave(
     "/mnt/claw-raid/elliot/P002_mtscATAC-seq/MitoDrift/nonsense/triangle.pdf",
@@ -108,21 +110,9 @@ ggsave(
 )
 
 
-current_theme <- theme_get()
-"statistic" %in% names(current_theme)
-
-### try rh feature amtrix?
 
 
 
-
-p = plot_coupling_triangle(res_path, mark_signif = TRUE, limits = c(-0.05, 0.05)) +
-    theme(
-        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
-        legend.position = "right",
-    )
-
-p
 
 
 
@@ -132,7 +122,7 @@ library(stringr)
 
 # --- ensure consistent state order (IMPORTANT) ---
 state_order <- c(
-  "P_1","P_2","P_3","P_04","P_5","P_6","P_8",
+  "P_",
   "C_0","C_1","C_2","C_3","C_4","C_5"
 )
 # --- node colors: P vs C ---
